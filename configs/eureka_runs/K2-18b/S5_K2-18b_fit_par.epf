@@ -1,0 +1,16 @@
+# Parameter Name, Value, Free/Fixed, Prior1, Prior2, Prior Type
+rp 0.05375 'free' 0.01 0.1 'U'
+t0 59964.96945 'free' 59964.96 0.06 'N'
+inc 89.57 'fixed' 89.5 1 'N'
+a 81.32 'fixed' 81.32 2 'N'
+per 32.94112 'fixed' 32.94112 0.0001 'N'
+ecc 0.0 'fixed' 0.0 1.0 'U'
+w 90.0 'fixed' 0.0 360.0 'U'
+limb_dark 'quadratic' 'independent'
+u1 0.2 'free' 0.0 0.1 'N'
+u2 0.2 'free' 0.0 0.1 'N'
+
+# Polynomial Baseline
+c0 1.0 'free' 0.9 1.1 'U'
+c1 0.0 'free' -0.1 0.1 'U'
+scatter_mult 1.1 'free' 0.8 10 'U'

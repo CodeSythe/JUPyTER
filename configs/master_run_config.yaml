@@ -1,0 +1,251 @@
+# ==============================================================================
+# JUPyTER: JWST Unified Pipeline Toolkit for Exoplanet Reduction
+# Master Configuration File
+# 
+# Description: This central configuration file controls the data reduction and 
+#              fitting parameters for Eureka!, exoTEDRF, and SPARTA pipelines.
+# ==============================================================================
+
+# ==========================================
+# 1. METADATA & I/O (Input/Output)
+# ==========================================
+meta:
+  target_name: "K2-18b"             # Name of the exoplanet. Used for file naming and plot titles.
+  instrument: "NIRSpec"             # 'NIRSpec', 'NIRISS', or 'MIRI'. Controls pipeline routing.
+  observing_mode: "NIRSpec/G395H"   # Specific instrument mode (e.g., 'NIRISS/SOSS', 'MIRI/LRS').
+
+io:
+  # Absolute path to your main wrapper directory. Ensure the trailing slash!
+  top_dir: "/home/NEXus/hablab/JWST_Analysis/v_stenv/wrapper/" 
+  
+  # Directory where your raw *uncal.fits files from MAST are stored.
+  input_dir: "inputs/uncal_data/"                    
+  
+  # Where all pipeline outputs, plots, and logs will be saved.
+  output_dir: "outputs/"                             
+  
+  # Path to your local JWST calibration files (CRDS cache). Critical for accurate wavelengths.
+  crds_cache: "/home/NEXus/hablab/JWST_Analysis/v_stenv/crds_cache/"     
+
+pipelines:
+  # Toggle which pipelines you want to run. 
+  # You can run one, two, or all three simultaneously.
+  eureka:
+    run: False
+    env_name: "eureka"    # The exact name of your conda environment for Eureka
+    start_stage: 1
+    end_stage: 6          # Eureka goes up to Stage 6 for lightcurve fitting
+  exotedrf:
+    run: True
+    env_name: "exotedrf"  # The exact name of your conda environment for exoTEDRF
+    start_stage: 1
+    end_stage: 4          # exoTEDRF goes up to Stage 4 for lightcurve fitting
+  sparta:
+    run: False
+    env_name: "sparta"    # The exact name of your conda environment for SPARTA
+    start_stage: 1
+    end_stage: 4          # SPARTA goes up to Stage 4 for lightcurve fitting
+
+
+# ==========================================
+# 2. UNIVERSAL REDUCTION PARAMETERS
+# ==========================================
+common_parameters:
+  max_cores: 32           # Number of CPU cores to dedicate to multiprocessing tasks.
+  
+  # Set to False to keep your terminal clean (logs are saved to file). 
+  # Set to True if you want to watch the pipeline stdout live.
+  live_terminal_output: False          
+  
+  # --- Detector & Ramp Fitting ---
+  # Sigma threshold for identifying and masking cosmic ray hits on the detector.
+  jump_rejection_threshold: 8.0        
+  
+  # Sigma threshold for identifying sudden jumps in the time series (exoTEDRF only).
+  time_jump_threshold: 10.0            
+  
+  # --- Background Subtraction ---
+  # Method used by Eureka! to calculate the background sky. 
+  # Options: 'std' (Standard Deviation), 'median' (Median Absolute Deviation), 'mean'.
+  bkg_method: "median"                  
+  
+  # Number of pixels to mask out from the center trace before calculating the background.
+  # Defaults: NIRSpec=7px, NIRISS=22px, MIRI=11px.
+  bkg_mask_half_width: 7               
+  
+  # Toggle 1/f column noise correction (highly recommended for JWST detectors).
+  correct_1f_noise: True                
+  
+  # --- 1D Spectral Extraction ---
+  extraction_method: "box" # Currently using simple box extraction.            
+  
+  # How wide the extraction window should be around the target star.
+  # Defaults: NIRSpec=4px, NIRISS=17px, MIRI=5px.
+  extraction_aperture_half_width: 4   
+  temporal_outlier_sigma: 10.0         
+  
+  # --- Lightcurve Generation --- 
+  # Wavelength range in microns (µm). 
+  # Note: For NIRISS in exoTEDRF, this is automatically overridden to start at 0.6µm
+  wavelength_min: 3.8        
+  wavelength_max: 5.1        
+  
+  # Number of bins to split the spectrum into.
+  # Set to 1 for a single, broad White Light Curve (WLC). 
+  # Set > 1 to generate a spectroscopic transmission spectrum.
+  number_of_channels: 5      
+
+  generate_plots: True       # Always recommended for verifying intermediate data quality.       
+
+# ==========================================
+# 3. INSTRUMENT-SPECIFIC OVERRIDES
+# ==========================================
+instrument_specific:
+  NIRISS:
+    order: 1                # Selected spectral order for processing (1st or 2nd) in Eureka.
+    extract_width_soss2: 23 # Extraction width for 2nd order. Set to 'None' to match order 1.        
+  NIRSpec:
+    superbias_method: "crds"
+    sensor: "NRS2"          # Target detector: 'NRS1' (short wavelengths) or 'NRS2' (long wavelengths).
+  MIRI:
+    run_emicorr: True       # EMI correction for MIRI detector noise.
+    miri_extraction_half_width: 4
+    miri_background_half_width: 12
+
+# ==========================================
+# 4. STELLAR & LIMB DARKENING
+# ==========================================
+# Provide the host star parameters to correctly model the transit shape.
+stellar_params:
+  teff: 3457          # Effective Temperature in Kelvin
+  logg: 4.72          # Surface Gravity
+  metallicity: 0.12   # [Fe/H]
+
+limb_darkening:
+  compute_ld: True    # If True, the wrapper will calculate theoretical Limb Darkening profiles.
+  
+  # Path to your downloaded exotic-ld stellar atmosphere models.
+  exotic_ld_direc: "/home/NEXus/hablab/JWST_Analysis/v_stenv/eureka/exotic-ld_data"
+  exotic_ld_grid: "phoenix"        
+  exotic_ld_file: None
+  
+  # Fallback quadratic LD coefficients if compute_ld is set to False (format: [u1, u2]).
+  default_ld_coeffs: [0.2, 0.2]
+
+# ==========================================
+# 5. FITTING & SYSTEM PRIORS (MCMC / Nested Sampling)
+# ==========================================
+# Define the planetary system parameters.
+# Prior Types: 
+#  'U' = Uniform (prior1 is lower bound, prior2 is upper bound)
+#  'N' = Normal (prior1 is mean, prior2 is standard deviation)
+system:
+  rp: # Planet radius relative to star (Rp/R*)
+    val: 0.05375
+    prior_type: "U"
+    prior1: 0.01
+    prior2: 0.1
+  t0: # Time of transit center (BJD or MJD)
+    val: 59964.96945
+    prior_type: "N"
+    prior1: 59964.96
+    prior2: 0.06
+  inc: # Orbital inclination in degrees
+    val: 89.57
+    prior_type: "N"
+    prior1: 89.5
+    prior2: 1
+  a: # Semi-major axis scaled by stellar radius (a/R*)
+    val: 81.32
+    prior_type: "N"
+    prior1: 81.32
+    prior2: 2
+  per: # Orbital period in days
+    val: 32.94112
+    prior_type: "N"
+    prior1: 32.94112
+    prior2: 0.0001
+  ecc: # Orbital eccentricity (Usually fixed to 0.0 for short periods)
+    val: 0.0
+    prior_type: "U"
+    prior1: 0.0
+    prior2: 1.0
+  w: # Argument of periastron in degrees
+    val: 90.0
+    prior_type: "U"
+    prior1: 0.0
+    prior2: 360.0
+
+fitting_control:
+  sampler: "dynesty"                     # Main fitting engine. Options: 'dynesty' or 'emcee' (For now only dynesty works for Eureka! and ExoTEDRF)
+  free_parameters: ["rp","t0"]           # Which parameters the fitter is allowed to change.
+
+  # --- EUREKA! SYSTEMATICS ---
+  eureka:
+    # Must list models exactly as Eureka! expects them.
+    # Add "GP" here if you wish to use Gaussian Process regression.
+    run_myfuncs: ["batman_tr", "polynomial"] #, "ypos", "ywidth"]
+
+    systematics:
+    # Placeholders for centroid decorrelation or GP parameters (currently commented out)
+      # Example centroid decorrelation parameters ( "ypos" and "ywidth" is in run_myfuncs)
+      # ypos:
+        # val: -0.01
+        # prior_type: "N"
+        # prior1: 0.0
+        # prior2: 0.1
+      # ywidth:
+        # val: 0.09
+        # prior_type: "N"
+        # prior1: 0.05
+        # prior2: 0.3
+      # Example GP parameters (uncomment if "GP" is in run_myfuncs)
+      # A:
+      #   val: -15.0
+      #   prior_type: "U"
+      #   prior1: -25.0
+      #   prior2: 0.0
+      # m:
+      #   val: -4.0
+      #   prior_type: "U"
+      #   prior1: -7.0
+      #   prior2: 0.0
+  
+  # --- EXOTEDRF SYSTEMATICS ---
+  exotedrf:
+    # Set to True to decorrelate flux against trace movement (centroid drift).
+    use_custom_detrending: False         # Toggle to False to fit without centroid decorrelation (my own addition, works with NIRSpec and MIRI on exotedrf)
+    detrend_smoothing_window: 20         # Rolling median window size for jitter smoothing.
+    lm_parameters: ["y_pos", "width"]    # Systematics columns to use if detrending is True.
+    
+    systematics:
+      sigma_inst:
+        val: 0.01
+        prior_type: "LU"    # LogUniform
+        prior1: 0.0001
+        prior2: 0.1
+      zero_inst:
+        val: 0.0
+        prior_type: "U"     # Uniform
+        prior1: -0.1
+        prior2: 0.1
+      theta1_inst:          # Coefficient for first lm_parameter (y_pos)
+        val: 0.0
+        prior_type: "U"
+        prior1: -1.0
+        prior2: 1.0
+      theta2_inst:          # Coefficient for second lm_parameter (width)
+        val: 0.0
+        prior_type: "U"
+        prior1: -1.0
+        prior2: 1.0
+    
+  # --- SPARTA SYSTEMATICS ---
+  sparta:
+    # SPARTA uses emcee. 
+    # MIRI datasets usually require dropping the first ~100+ integrations due to detector ramp.
+    exclude_beginning_integrations: 10   
+    burn_in_runs: 500
+    production_runs: 1000
+    num_walkers: 50
+    bin_size: 1

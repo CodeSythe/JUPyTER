@@ -1,0 +1,29 @@
+# JWST Data & Outputs
+inputs/
+outputs/
+logs/
+crds_cache/
+*.fits
+*.h5
+*.pkl
+*.npy
+*.txt
+*.csv
+*.png
+*.pdf
+
+# Python & OS files
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+# Keep the directory structure intact but empty
+!inputs/.gitkeep
+!outputs/.gitkeep
+!logs/.gitkeep
+
+# IGNORE NESTED BACKEND REPOSITORIES 
+sparta/
+exoTEDRF/
+eureka/

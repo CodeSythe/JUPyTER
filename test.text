@@ -1,0 +1,23 @@
+JWST_Unified_Wrapper/
+├── inputs/
+│   └── uncal_data/                 # Raw uncalibrated FITS files go here
+├── outputs/                        # Generated dynamically by master_run.py
+│   ├── eureka/
+│   │   └── K2-18b/
+│   │       ├── Stage1/ ... Stage4/
+│   ├── exotedrf/
+│   │   └── K2-18b/
+│   │       ├── Stage1/ ... Stage3/
+│   └── sparta/
+│       └── K2-18b/
+├── configs/
+│   ├── master_run_config.yaml      # The ONLY file you interact with
+│   ├── default_eureka/
+│   │   ├── S1_template.ecf ... S4_template.ecf
+│   └── default_exotedrf/
+│       └── run_DMS_template.yaml   
+├── workers/
+│   ├── call_eureka.py              # Translates YAML -> ECF and runs Eureka
+│   ├── call_exotedrf.py            # Translates YAML -> YAML and runs exoTEDRF
+│   └── call_sparta.py              # Translates YAML -> shell commands and runs Sparta
+└── master_run.py                   # The main orchestrator script
