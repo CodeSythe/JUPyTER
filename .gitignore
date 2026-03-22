@@ -1,9 +1,6 @@
 # JWST Data & Outputs
 logs/
 crds_cache/
-*.efc
-*.epf
-*.yaml
 *.fits
 *.h5
 *.pkl
@@ -12,7 +9,10 @@ crds_cache/
 *.csv
 *.png
 *.pdf
-!master_run_config.yaml
+configs/*.ecf
+configs/*.epf
+outputs/*
+inputs/*
 
 # Python & OS files
 __pycache__/

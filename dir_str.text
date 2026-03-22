@@ -1,4 +1,4 @@
-JWST_Unified_Wrapper/
+Wrapper/
 ├── inputs/
 │   └── uncal_data/                 # Raw uncalibrated FITS files go here
 ├── outputs/                        # Generated dynamically by master_run.py
@@ -15,7 +15,8 @@ JWST_Unified_Wrapper/
 │   ├── default_eureka/
 │   │   ├── S1_template.ecf ... S4_template.ecf
 │   └── default_exotedrf/
-│       └── run_DMS_template.yaml   
+│       ├── run_DMS.yaml
+│       └── fit_lightcurves.yaml
 ├── workers/
 │   ├── call_eureka.py              # Translates YAML -> ECF and runs Eureka
 │   ├── call_exotedrf.py            # Translates YAML -> YAML and runs exoTEDRF
