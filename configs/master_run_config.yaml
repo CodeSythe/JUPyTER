@@ -31,7 +31,7 @@ pipelines:
   # Toggle which pipelines you want to run. 
   # You can run one, two, or all three simultaneously.
   eureka:
-    run: False
+    run: True
     env_name: "eureka"    # The exact name of your conda environment for Eureka
     start_stage: 1
     end_stage: 6          # Eureka goes up to Stage 6 for lightcurve fitting
@@ -178,7 +178,7 @@ system:
 
 fitting_control:
   sampler: "dynesty"                     # Main fitting engine. Options: 'dynesty' or 'emcee' (For now only dynesty works for Eureka! and ExoTEDRF)
-  free_parameters: ["rp","t0"]           # Which parameters the fitter is allowed to change.
+  free_parameters: ["rp"]           # Which parameters the fitter is allowed to change.
 
   # --- EUREKA! SYSTEMATICS ---
   eureka:

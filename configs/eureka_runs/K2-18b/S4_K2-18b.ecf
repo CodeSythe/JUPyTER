@@ -3,8 +3,8 @@
 # Stage 4 Documentation: https://eurekadocs.readthedocs.io/en/latest/ecf.html#stage-4
 
 # Number of spectroscopic channels spread evenly over given wavelength range
-nspecchan  1
-compute_white  False
+nspecchan  5
+compute_white  True
 s4_order        None        # For NIRISS, specify spectral order
 wave_min  3.8
 wave_max  5.1

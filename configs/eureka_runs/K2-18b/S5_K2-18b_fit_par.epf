@@ -1,6 +1,6 @@
 # Parameter Name, Value, Free/Fixed, Prior1, Prior2, Prior Type
 rp 0.05375 'free' 0.01 0.1 'U'
-t0 59964.96945 'free' 59964.96 0.06 'N'
+t0 59964.96945 'fixed' 59964.96 0.06 'N'
 inc 89.57 'fixed' 89.5 1 'N'
 a 81.32 'fixed' 81.32 2 'N'
 per 32.94112 'fixed' 32.94112 0.0001 'N'
