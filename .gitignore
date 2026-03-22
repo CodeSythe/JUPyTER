@@ -1,6 +1,4 @@
 # JWST Data & Outputs
-inputs/
-outputs/
 logs/
 crds_cache/
 *.fits
@@ -24,6 +22,7 @@ __pycache__/
 !inputs/.gitkeep
 !outputs/.gitkeep
 !logs/.gitkeep
+
 
 # IGNORE NESTED BACKEND REPOSITORIES 
 sparta/
