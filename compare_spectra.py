@@ -4,170 +4,156 @@ import yaml
 import argparse
 import numpy as np
 import pandas as pd
-from bokeh.plotting import figure, output_file, save
-from bokeh.models import ColumnDataSource, HoverTool, Whisker
-from bokeh.transform import factor_cmap
+import matplotlib.pyplot as plt
 
-def convert_to_unit(absolute_value, target_unit):
-    """Converts absolute transit depth (Rp/R*)^2 to the requested unit."""
-    if target_unit == "percent":
-        return absolute_value * 100.0
-    elif target_unit == "ppm":
-        return absolute_value * 1e6
-    return absolute_value
+def load_config(config_path="configs/master_run_config.yaml"):
+    """Loads the master YAML configuration file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+def find_newest_file(pattern):
+    """Finds the most recently modified file matching a wildcard pattern."""
+    files = glob.glob(pattern, recursive=True)
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
+
+def load_eureka_data(filepath):
+    """Loads Eureka! text outputs and converts fractional depth to percent."""
+    df = pd.read_csv(filepath, delimiter=' ', comment='#')
+    
+    wave = df['wavelength'].values
+    wave_err = (df['bin_width']).values
+    
+    # Eureka outputs absolute fractional depth. Multiply by 100 for percent (%)
+    depth_pct = df['rp^2_value'].values * 100.0
+    
+    # Average the asymmetric errors and convert to percent
+    err_pct = ((df['rp^2_errorneg'] + df['rp^2_errorpos']) / 2.0).values * 100.0
+    
+    return wave, wave_err, depth_pct, err_pct
+
+def load_exotedrf_data(filepath):
+    """Loads exoTEDRF CSV outputs and converts ppm to percent."""
+    df = pd.read_csv(filepath, comment='#')
+    
+    wave = df['wave'].values
+    wave_err = df['wave_err'].values
+    
+    # exoTEDRF outputs in ppm. Divide by 10,000 to get percent (%)
+    depth_pct = df['dppm'].values / 10000.0
+    err_pct = df['dppm_err'].values / 10000.0
+    
+    return wave, wave_err, depth_pct, err_pct
 
 def main():
-    parser = argparse.ArgumentParser(description="Compile and Plot Interactive Transmission Spectra")
-    parser.add_argument("--config", type=str, default="configs/master_run_config.yaml", help="Path to master config")
-    parser.add_argument("--unit", type=str, choices=["percent", "ppm", "absolute"], default="percent", help="Units for transit depth")
+    parser = argparse.ArgumentParser(description="Compare Eureka! and exoTEDRF Spectra")
+    parser.add_argument("--residuals", action="store_true", help="Plot a residual panel (Eureka - exoTEDRF)")
     args = parser.parse_args()
 
-    # 1. Read Master Config
-    with open(args.config, "r") as f:
-        cfg = yaml.safe_load(f)
+    config = load_config()
+    target = config['meta']['target_name']
+    out_dir = config['io']['output_dir']
 
-    target = cfg['meta']['target_name']
-    out_dir = cfg['io']['output_dir']
-    comp_dir = os.path.join(out_dir, "comparisons")
-    os.makedirs(comp_dir, exist_ok=True)
+    # Dynamic path matching to grab the newest runs
+    eureka_pattern = os.path.join(out_dir, "eureka", target, "Stage6", f"S6_*_{target}_run*", "*", f"S6_{target}_*_rp^2_Table_Save.txt")
+    exotedrf_pattern = os.path.join(out_dir, "exotedrf", target, "pipeline_outputs_directory_*", "Stage4", f"{target}_*_transmission_spectrum*.csv")
 
-    all_data = []
+    eureka_file = find_newest_file(eureka_pattern)
+    exotedrf_file = find_newest_file(exotedrf_pattern)
 
-    # 2. Extract Eureka! Data
-    eureka_pattern = os.path.join(out_dir, "eureka", target, "Stage6", f"S6*_{target}_run1", "S6*Table_Save.txt")
-    eureka_files = glob.glob(eureka_pattern)
-    if eureka_files:
-        try:
-            # Eureka format: wave, bin_width, rp2, err_neg, err_pos (absolute units)
-            data = np.loadtxt(eureka_files[0], comments="#")
-            if data.ndim > 1:
-                for row in data:
-                    all_data.append({
-                        "Pipeline": "Eureka!",
-                        "Wave": row[0],
-                        "Wave_Err": row[1] / 2.0,
-                        "Depth": convert_to_unit(row[2], args.unit),
-                        "Err_Neg": convert_to_unit(row[3], args.unit),
-                        "Err_Pos": convert_to_unit(row[4], args.unit)
-                    })
-            print(f"[+] Loaded Eureka! spectrum")
-        except Exception as e:
-            print(f"[!] Error reading Eureka file: {e}")
-
-    # 3. Extract exoTEDRF Data
-    exotedrf_pattern = os.path.join(out_dir, "exotedrf", target, "stage4", "*transmission_spectrum*prebin.csv")
-    exotedrf_files = glob.glob(exotedrf_pattern)
-    if exotedrf_files:
-        try:
-            # exoTEDRF format: wave, wave_err, dppm, dppm_err (ppm units)
-            data = pd.read_csv(exotedrf_files[0], comment='#')
-            for _, row in data.iterrows():
-                abs_depth = row['dppm'] / 1e6
-                abs_err = row['dppm_err'] / 1e6
-                all_data.append({
-                    "Pipeline": "exoTEDRF",
-                    "Wave": row['wave'],
-                    "Wave_Err": row['wave_err'],
-                    "Depth": convert_to_unit(abs_depth, args.unit),
-                    "Err_Neg": convert_to_unit(abs_err, args.unit),
-                    "Err_Pos": convert_to_unit(abs_err, args.unit)
-                })
-            print(f"[+] Loaded exoTEDRF spectrum")
-        except Exception as e:
-            print(f"[!] Error reading exoTEDRF file: {e}")
-
-    # 4. Extract SPARTA Data
-    sparta_bins = sorted(glob.glob(os.path.join(out_dir, "sparta", target, "mcmc_chain_bin_*", "white_light_result.txt")))
-    if sparta_bins:
-        try:
-            for f in sparta_bins:
-                data = np.loadtxt(f, comments="#")
-                if data.size > 0 and data.ndim == 1:
-                    # SPARTA format: min_wave, max_wave, rp2, err_neg, err_pos (absolute units)
-                    w_min, w_max, d_med, d_neg, d_pos = data[0], data[1], data[2], data[3], data[4]
-                    all_data.append({
-                        "Pipeline": "SPARTA",
-                        "Wave": (w_min + w_max) / 2.0,
-                        "Wave_Err": (w_max - w_min) / 2.0,
-                        "Depth": convert_to_unit(d_med, args.unit),
-                        "Err_Neg": convert_to_unit(d_neg, args.unit),
-                        "Err_Pos": convert_to_unit(d_pos, args.unit)
-                    })
-            print(f"[+] Loaded SPARTA spectrum")
-        except Exception as e:
-            print(f"[!] Error reading SPARTA files: {e}")
-
-    if not all_data:
-        print("[!] No transmission spectra found for any pipeline.")
+    if not eureka_file or not exotedrf_file:
+        print("[!] Missing output files. Ensure both Eureka! Stage 6 and exoTEDRF Stage 4 are complete.")
         return
 
-    # Convert to DataFrame
-    df = pd.DataFrame(all_data)
+    print(f"[+] Loading Eureka! file: {os.path.basename(eureka_file)}")
+    print(f"[+] Loading exoTEDRF file: {os.path.basename(exotedrf_file)}")
+
+    # Load and process data
+    try:
+        eu_wave, eu_wave_err, eu_depth_pct, eu_err_pct = load_eureka_data(eureka_file)
+    except Exception as e:
+        print(f"[!] Error reading Eureka file: {e}")
+        return
+
+    try:
+        exo_wave, exo_wave_err, exo_depth_pct, exo_err_pct = load_exotedrf_data(exotedrf_file)
+    except Exception as e:
+        print(f"[!] Error reading exoTEDRF file: {e}")
+        return
+
+    # ==========================================
+    # PUBLICATION-READY PLOTTING
+    # ==========================================
+    plt.style.use('default')
     
-    # Calculate upper and lower bounds for the error bars (Whiskers)
-    df['Upper'] = df['Depth'] + df['Err_Pos']
-    df['Lower'] = df['Depth'] - df['Err_Neg']
+    # Adjust figure layout based on whether residuals are requested
+    if args.residuals:
+        fig, (ax_main, ax_res) = plt.subplots(2, 1, figsize=(12, 8), dpi=150, 
+                                              gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+    else:
+        fig, ax_main = plt.subplots(figsize=(12, 6), dpi=150)
+        ax_res = None
 
-    # Apply slight x-axis offsets to prevent error bars from completely eclipsing each other
-    offset_map = {'Eureka!': -0.003, 'exoTEDRF': 0.0, 'SPARTA': 0.003}
-    df['Wave_Plot'] = df.apply(lambda row: row['Wave'] + offset_map.get(row['Pipeline'], 0), axis=1)
+    color_eu = '#0072B2'   # Blue
+    color_exo = '#D55E00'  # Vermilion
 
-    # 5. Save Unified Data to CSV
-    csv_path = os.path.join(comp_dir, f"{target}_unified_spectrum_{args.unit}.csv")
-    df.drop(columns=['Upper', 'Lower', 'Wave_Plot']).to_csv(csv_path, index=False)
-    print(f"[+] Saved Unified Dataset to: {csv_path}")
-
-    # 6. Interactive Plotting with Bokeh
-    unit_labels = {"percent": "Transit Depth (%)", "ppm": "Transit Depth (ppm)", "absolute": "Transit Depth (Rp/R*)²"}
+    # --- Main Plot ---
+    ax_main.errorbar(eu_wave, eu_depth_pct, xerr=eu_wave_err, yerr=eu_err_pct, 
+                     fmt='o', markersize=7, capsize=0, elinewidth=1.5,
+                     label='Eureka! (v1.3)', alpha=0.85, color=color_eu,
+                     markeredgecolor='white', markeredgewidth=0.5)
     
-    p = figure(
-        title=f"Interactive Transmission Spectrum Comparison: {target}",
-        x_axis_label="Wavelength (µm)",
-        y_axis_label=unit_labels[args.unit],
-        width=1000, height=600,
-        tools="pan,wheel_zoom,box_zoom,reset,save",
-        active_scroll="wheel_zoom"
-    )
+    ax_main.errorbar(exo_wave, exo_depth_pct, xerr=exo_wave_err, yerr=exo_err_pct, 
+                     fmt='s', markersize=7, capsize=0, elinewidth=1.5,
+                     label='exoTEDRF', alpha=0.85, color=color_exo,
+                     markeredgecolor='white', markeredgewidth=0.5)
 
-    colors = {'Eureka!': '#1f77b4', 'exoTEDRF': '#2ca02c', 'SPARTA': '#d62728'}
-    markers = {'Eureka!': 'circle', 'exoTEDRF': 'square', 'SPARTA': 'triangle'}
+    ax_main.set_ylabel("Transit Depth (%)", fontsize=14, fontweight='bold', labelpad=10)
+    ax_main.set_title(f"Transmission Spectrum Pipeline Comparison: {target}", fontsize=16, fontweight='bold', pad=15)
+    ax_main.legend(fontsize=12, loc='upper right', framealpha=0.9, edgecolor='grey', borderpad=0.8)
+    
+    # --- Residuals Plot ---
+    if ax_res is not None:
+        # Check if wavelength grids match well enough to subtract
+        if len(eu_wave) == len(exo_wave):
+            # Calculate residuals (Eureka - exoTEDRF)
+            residuals = eu_depth_pct - exo_depth_pct
+            
+            # Error propagation for subtraction: sqrt(err1^2 + err2^2)
+            res_err = np.sqrt(eu_err_pct**2 + exo_err_pct**2)
+            
+            ax_res.errorbar(eu_wave, residuals, xerr=eu_wave_err, yerr=res_err,
+                            fmt='D', markersize=5, capsize=0, elinewidth=1.2,
+                            color='black', alpha=0.7, markeredgecolor='white', markeredgewidth=0.5)
+            
+            ax_res.axhline(0, color='grey', linestyle='--', alpha=0.7)
+            ax_res.set_ylabel("Δ Depth (%)", fontsize=12, fontweight='bold')
+        else:
+            print("[!] Warning: Wavelength grids do not match. Cannot compute direct residuals.")
+            ax_res.text(0.5, 0.5, 'Wavelength Grids Mismatch', ha='center', va='center', transform=ax_res.transAxes)
 
-    for pipeline in df['Pipeline'].unique():
-        sub_df = df[df['Pipeline'] == pipeline]
-        source = ColumnDataSource(sub_df)
-        
-        # Add Error Bars (Whiskers)
-        whisker = Whisker(source=source, base="Wave_Plot", upper="Upper", lower="Lower", line_color=colors[pipeline], line_width=1.5, line_alpha=0.7)
-        whisker.upper_head.line_color = colors[pipeline]
-        whisker.lower_head.line_color = colors[pipeline]
-        p.add_layout(whisker)
+    # --- Formatting for the bottom-most axis ---
+    bottom_ax = ax_res if ax_res is not None else ax_main
+    bottom_ax.set_xlabel("Wavelength (µm)", fontsize=14, fontweight='bold', labelpad=10)
 
-        # Add Scatter Points
-        scatter = p.scatter(
-            x='Wave_Plot', y='Depth', source=source,
-            size=9, color=colors[pipeline], marker=markers[pipeline],
-            legend_label=pipeline, alpha=0.9, line_color="black"
-        )
-        
-        # Add Hover Tool for exactly this pipeline
-        hover = HoverTool(renderers=[scatter], tooltips=[
-            ("Pipeline", "@Pipeline"),
-            ("Wavelength", "@Wave{0.000} µm"),
-            ("Depth", f"@Depth{{0.000}} (+@Err_Pos{{0.000}} / -@Err_Neg{{0.000}})"),
-        ])
-        p.add_tools(hover)
+    # Clean grids for all axes
+    for ax in [ax_main, ax_res] if ax_res is not None else [ax_main]:
+        ax.tick_params(axis='both', which='major', labelsize=12, length=6, width=1.5)
+        ax.tick_params(axis='both', which='minor', length=3, width=1)
+        ax.grid(True, which='major', linestyle='-', alpha=0.3, color='grey')
+        ax.grid(True, which='minor', linestyle=':', alpha=0.2, color='grey')
+        ax.minorticks_on()
+    
+    plt.tight_layout()
 
-    # Styling
-    p.legend.click_policy = "hide" # Click the legend to hide/show pipelines!
-    p.legend.location = "top_right"
-    p.xgrid.grid_line_alpha = 0.3
-    p.ygrid.grid_line_alpha = 0.3
-
-    # Output to HTML
-    html_path = os.path.join(comp_dir, f"{target}_transmission_comparison_{args.unit}.html")
-    output_file(html_path, title=f"{target} Spectra Comparison")
-    save(p)
-    print(f"[+] Saved Interactive Bokeh Plot to: {html_path}")
+    # Save the plot
+    res_suffix = "_with_residuals" if args.residuals else ""
+    plot_path = os.path.join(out_dir, f"{target}_pipeline_comparison{res_suffix}.png")
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    print(f"\nComparison plot saved to: {plot_path}")
+    
+    plt.show()
 
 if __name__ == "__main__":
     main()
