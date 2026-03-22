@@ -1,6 +1,9 @@
 # JWST Data & Outputs
 logs/
 crds_cache/
+*.efc
+*.epf
+*.yaml
 *.fits
 *.h5
 *.pkl
@@ -9,20 +12,13 @@ crds_cache/
 *.csv
 *.png
 *.pdf
+!master_run_config.yaml
 
 # Python & OS files
 __pycache__/
 *.pyc
 .DS_Store
 .ipynb_checkpoints/
-.configs/default_eureka/
-.configs/default_exotedrf/
-
-# Keep the directory structure intact but empty
-!inputs/.gitkeep
-!outputs/.gitkeep
-!logs/.gitkeep
-
 
 # IGNORE NESTED BACKEND REPOSITORIES 
 sparta/
