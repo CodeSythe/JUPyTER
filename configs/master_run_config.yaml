@@ -24,7 +24,7 @@ io:
   # Where all pipeline outputs, plots, and logs will be saved.
   output_dir: "outputs/"                             
   
-  # Path to your local JWST calibration files (CRDS cache). Critical for accurate wavelengths.
+  # Path to your local JWST calibration files (CRDS cache).
   crds_cache: "/home/NEXus/hablab/JWST_Analysis/v_stenv/crds_cache/"     
 
 pipelines:

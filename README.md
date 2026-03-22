@@ -83,7 +83,7 @@ mkdir crds_cache
 ```
 
 ### 3. Configure the Run
-Open configs/master_run_config.yaml
+Open configs/master_run_config.yaml 
 - Update the top_dir and crds_cache paths to match your machine's absolute paths.
 - Set your planetary priors, target name, and instrument parameters.
 - Toggle which pipelines you want to run (run: True or False).

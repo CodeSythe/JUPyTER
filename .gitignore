@@ -1,5 +1,6 @@
-# JWST Data & Outputs
-logs/
+# ==========================================
+# JWST Data, Caches & Outputs
+# ==========================================
 crds_cache/
 *.fits
 *.h5
@@ -9,18 +10,36 @@ crds_cache/
 *.csv
 *.png
 *.pdf
-configs/*.ecf
-configs/*.epf
-outputs/*
-inputs/*
 
+# Keep the directory structure intact, but ignore all contents
+inputs/*
+!inputs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# ==========================================
+# Configurations
+# ==========================================
+# Ignore the generated run-specific configuration folders
+configs/eureka_runs/
+configs/exotedrf_runs/
+# (default_eureka and default_exotedrf are NOT ignored, so they will be pushed!)
+
+# ==========================================
 # Python & OS files
+# ==========================================
 __pycache__/
 *.pyc
 .DS_Store
 .ipynb_checkpoints/
 
+# ==========================================
 # IGNORE NESTED BACKEND REPOSITORIES 
+# ==========================================
 sparta/
 exoTEDRF/
+exotedrf/
+Eureka/
 eureka/
