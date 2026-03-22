@@ -83,7 +83,7 @@ def main():
         return
 
     # ==========================================
-    # PUBLICATION-READY PLOTTING
+    # PLOTTING
     # ==========================================
     plt.style.use('default')
     
@@ -96,7 +96,7 @@ def main():
         ax_res = None
 
     color_eu = '#0072B2'   # Blue
-    color_exo = '#D55E00'  # Vermilion
+    color_exo = '#D55E00'  # red-orange
 
     # --- Main Plot ---
     ax_main.errorbar(eu_wave, eu_depth_pct, xerr=eu_wave_err, yerr=eu_err_pct, 
